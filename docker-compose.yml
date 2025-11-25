@@ -4,9 +4,6 @@ networks:
   monitoring:
     name: monitoring-network
     driver: bridge
-  bridge:
-    external: true
-    name: bridge
   dokploy:
     external: true
     name: dokploy-network
@@ -20,7 +17,6 @@ services:
     restart: unless-stopped
     networks:
       - monitoring
-      - bridge
       - dokploy
       - supabase
     volumes:
@@ -37,7 +33,7 @@ services:
     restart: unless-stopped
     networks:
       - monitoring
-      - bridge
+      - dokploy
     environment:
       - GF_SERVER_ROOT_URL=http://grafana.${DOMAIN}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}

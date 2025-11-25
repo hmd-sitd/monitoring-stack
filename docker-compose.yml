@@ -16,13 +16,9 @@ services:
     image: prom/prometheus
     restart: unless-stopped
     networks:
-      monitoring:
-        aliases:
-          - prometheus
-      dokploy:
-      supabase:
-    ports:
-      - "127.0.0.1:9090:9090"
+      - monitoring
+      - dokploy
+      - supabase
     volumes:
       - prometheus-data:/prometheus
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
@@ -36,11 +32,7 @@ services:
     image: grafana/grafana
     restart: unless-stopped
     networks:
-      monitoring:
-        aliases:
-          - grafana
-    ports:
-      - "127.0.0.1:3000:3000"
+      - monitoring
     environment:
       - GF_SERVER_ROOT_URL=http://grafana.${DOMAIN}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
@@ -57,17 +49,13 @@ services:
     image: prom/node-exporter
     restart: unless-stopped
     networks:
-      monitoring:
-        aliases:
-          - node_exporter
+      - monitoring
 
   loki:
     image: grafana/loki:2.9.0
     restart: unless-stopped
     networks:
-      monitoring:
-        aliases:
-          - loki
+      - monitoring
     volumes:
       - loki-data:/loki
       - ./loki-config.yml:/etc/loki/local-config.yaml
@@ -77,11 +65,9 @@ services:
     image: grafana/promtail:2.9.0
     restart: unless-stopped
     networks:
-      monitoring:
-        aliases:
-          - promtail
-      dokploy:
-      supabase:
+      - monitoring
+      - dokploy
+      - supabase
     volumes:
       - /var/log:/var/log:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro

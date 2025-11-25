@@ -4,9 +4,6 @@ networks:
   monitoring:
     name: monitoring-network
     driver: bridge
-  traefik:
-    external: true
-    name: bridge
   dokploy:
     external: true
     name: dokploy-network
@@ -17,13 +14,15 @@ networks:
 services:
   prometheus:
     image: prom/prometheus
-    container_name: prometheus
     restart: unless-stopped
     networks:
-      - monitoring
-      - traefik
-      - dokploy
-      - supabase
+      monitoring:
+        aliases:
+          - prometheus
+      dokploy:
+      supabase:
+    ports:
+      - "127.0.0.1:9090:9090"
     volumes:
       - prometheus-data:/prometheus
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
@@ -32,15 +31,16 @@ services:
       - "traefik.http.routers.prometheus.rule=Host(`prometheus.${DOMAIN}`)"
       - "traefik.http.routers.prometheus.entrypoints=web"
       - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
-      - "traefik.docker.network=bridge"
 
   grafana:
     image: grafana/grafana
-    container_name: grafana
     restart: unless-stopped
     networks:
-      - monitoring
-      - traefik
+      monitoring:
+        aliases:
+          - grafana
+    ports:
+      - "127.0.0.1:3000:3000"
     environment:
       - GF_SERVER_ROOT_URL=http://grafana.${DOMAIN}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
@@ -52,21 +52,22 @@ services:
       - "traefik.http.routers.grafana.rule=Host(`grafana.${DOMAIN}`)"
       - "traefik.http.routers.grafana.entrypoints=web"
       - "traefik.http.services.grafana.loadbalancer.server.port=3000"
-      - "traefik.docker.network=bridge"
 
   node_exporter:
     image: prom/node-exporter
-    container_name: node_exporter
     restart: unless-stopped
     networks:
-      - monitoring
+      monitoring:
+        aliases:
+          - node_exporter
 
   loki:
     image: grafana/loki:2.9.0
-    container_name: loki
     restart: unless-stopped
     networks:
-      - monitoring
+      monitoring:
+        aliases:
+          - loki
     volumes:
       - loki-data:/loki
       - ./loki-config.yml:/etc/loki/local-config.yaml
@@ -74,12 +75,13 @@ services:
 
   promtail:
     image: grafana/promtail:2.9.0
-    container_name: promtail
     restart: unless-stopped
     networks:
-      - monitoring
-      - dokploy
-      - supabase
+      monitoring:
+        aliases:
+          - promtail
+      dokploy:
+      supabase:
     volumes:
       - /var/log:/var/log:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro

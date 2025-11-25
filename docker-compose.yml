@@ -1,11 +1,29 @@
 version: "3.8"
 
+networks:
+  monitoring:
+    name: monitoring-network
+    driver: bridge
+  traefik:
+    external: true
+    name: bridge
+  dokploy:
+    external: true
+    name: dokploy-network
+  supabase:
+    external: true
+    name: code_default
+
 services:
   prometheus:
     image: prom/prometheus
     container_name: prometheus
     restart: unless-stopped
-    network_mode: bridge
+    networks:
+      - monitoring
+      - traefik
+      - dokploy
+      - supabase
     volumes:
       - prometheus-data:/prometheus
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
@@ -14,15 +32,19 @@ services:
       - "traefik.http.routers.prometheus.rule=Host(`prometheus.${DOMAIN}`)"
       - "traefik.http.routers.prometheus.entrypoints=web"
       - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
+      - "traefik.docker.network=bridge"
 
   grafana:
     image: grafana/grafana
     container_name: grafana
     restart: unless-stopped
-    network_mode: bridge
+    networks:
+      - monitoring
+      - traefik
     environment:
-      - GF_SERVER_ROOT_URL=https://grafana.${DOMAIN}
+      - GF_SERVER_ROOT_URL=http://grafana.${DOMAIN}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_INSTALL_PLUGINS=grafana-clock-panel
     volumes:
       - grafana-data:/var/lib/grafana
     labels:
@@ -30,18 +52,21 @@ services:
       - "traefik.http.routers.grafana.rule=Host(`grafana.${DOMAIN}`)"
       - "traefik.http.routers.grafana.entrypoints=web"
       - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+      - "traefik.docker.network=bridge"
 
   node_exporter:
     image: prom/node-exporter
     container_name: node_exporter
     restart: unless-stopped
-    network_mode: bridge
+    networks:
+      - monitoring
 
   loki:
     image: grafana/loki:2.9.0
     container_name: loki
     restart: unless-stopped
-    network_mode: bridge
+    networks:
+      - monitoring
     volumes:
       - loki-data:/loki
       - ./loki-config.yml:/etc/loki/local-config.yaml
@@ -51,9 +76,13 @@ services:
     image: grafana/promtail:2.9.0
     container_name: promtail
     restart: unless-stopped
-    network_mode: bridge
+    networks:
+      - monitoring
+      - dokploy
+      - supabase
     volumes:
       - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - ./promtail-config.yml:/etc/promtail/config.yml
     command: -config.file=/etc/promtail/config.yml
 
